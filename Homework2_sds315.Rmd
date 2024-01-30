@@ -1,0 +1,194 @@
+---
+title: "Homework 2 sds315"
+author: "Lauren Maurer"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r global_options, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), message = FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r, echo=FALSE, message=FALSE}
+## Problem 1: Beauty, or not, in the classroom
+
+profs<- read.csv("profs.csv")
+
+profs_gg<- ggplot(profs)
+
+
+# Part A
+
+profs_gg + geom_histogram(aes(x=eval), col='black') + labs(title= "Distribution of Corse Evaluations", x= "Evaluation Score", y = 'Count')
+```
+
+Students at The University of Texas at Austin get to evaluate the courses they take at the end of the semester and give their professors a score on a scale of 1 to 5. The mean of course evaluation scores is `r round(mean(profs$eval), 2)` and the median was `r round(median(profs$eval),2)`.
+\newline
+```{r, echo=FALSE, message=FALSE}
+#Part B
+
+profs_gg + geom_boxplot(aes(x=native, y=eval)) + labs(title= "Corse Evaluations by Native Speaking Status", x="Native Speaking Status", y= "Evaluation Score")
+```
+
+This box plot looks at professor evaluation scores based on whether or not a professor's native language is English. Non-native speakers have a lower median evaluation score, but native English speakers have a larger range and five outliers for low evaluation scores.  
+
+``` {r, echo=FALSE, message=FALSE}
+#Part C
+
+profs_gg + geom_histogram(aes(x=eval), col='black') + facet_wrap(~gender) + labs(title= "Distribution of Corse Evaluations by Gender", x= "Evaluation Score")
+```
+
+The evaluation for female professors peak round 3.8-3.9 and the evaluations for male professors peak around 4 and 4.3. Male teachers have the highest and lowest evaluation scores. 
+
+```{r, echo=FALSE, message=FALSE}
+#Part D
+
+profs_gg + geom_point(aes(x=beauty, y=eval))+ labs(title= "Instructor Attractiveness vs. Course Evaluation", x= "Instructor Attractiveness", y= "Evaluation Score")
+```
+
+To determine an instructor's attractiveness a six-person panel rated attractiveness and the average ratings were shifted so that the mean was at zero. The correlation between attractiveness and evaluation score is `r round(cor(profs$beauty, profs$eval), 2)` which means there isn't much of a correlation.
+
+
+```{r, echo=FALSE, message=FALSE}
+## Problem 2: Bike Sharing
+ bike<- read.csv('bikeshare.csv')
+
+bike_gg<- ggplot(bike)
+
+#Plot A
+
+bike_avg<- group_by(bike,hr)
+avg<- summarise(bike_avg, avg=mean(total))
+
+avg_gg<- ggplot(avg)
+avg_gg + geom_line(aes(x=hr, y=avg), size = 1) + labs(x = 'Hours of the Day', y = 'Average Bike Rentals', title = 'Bike Rentals Across Hours of the Day')
+```
+
+There are two peaks, one around 8am and another around 5pm, during rush hour. The second peak around 5pm is higher with the average bike rentals over 450. 
+
+```{r, echo=FALSE, message=FALSE}
+#Plot B
+
+workday<- filter(bike, workingday== '1')
+bike_avgWD<- group_by(workday, hr, workingday)
+avgWD<- summarise(bike_avgWD, avg=mean(total))
+
+
+nonWorkday<- filter(bike, workingday== '0')
+bike_avgNWD<- group_by(nonWorkday, hr, workingday)
+avgNWD<- summarise(bike_avgNWD, avg=mean(total))
+
+
+avg_graph<- merge(x= avgWD, y= avgNWD, by= c('workingday', 'hr', 'avg'), all=TRUE)
+
+
+ggplot() + geom_line(data= avg_graph, aes(x=hr, y=avg, color= factor(workingday)), size = 1) + facet_wrap(~workingday, labeller = labeller(workingday = c('0' = 'Non-Workingday', '1' = 'Workingday'))) + labs(x = 'Hours of the Day', y = 'Average Bike Rentals', title = 'Bike Rentals Across Hours of the Day based on Workingday Status') + scale_fill_discrete(name = 'Working Day', labels = c('0' = 'Non-working Day', '1' = 'Working Day'))
+```
+
+The average bike rentals peak at different times of the day depending if it is a weekday or weekend. The weekday there are sharp peaks around 8am and 5pm (rush hour), but on the weekend bike rentals peak around 1pm.
+
+```{r, echo=FALSE, message=FALSE}
+#Plot C
+
+bike_nine<- filter(bike, hr== 9)
+weather_nine<- group_by(bike_nine, weathersit, workingday)
+
+weather_avg<- summarise(weather_nine, avg=mean(total))
+
+
+ggplot() + geom_col(data= weather_avg, aes(x= factor(weathersit), y=avg, fill= factor(workingday))) + facet_wrap(~workingday, labeller = labeller(workingday = c('0' = 'Non-Workingday', '1' = 'Workingday'))) + labs(x = 'Weather Situation', y = 'Average Bike Rentals', title = 'Bike Rentals Based on Weather Situation and Workingday Status') + scale_fill_discrete(name = 'Working Day', labels = c('0' = 'Non-working Day', '1' = 'Working Day')) + scale_x_discrete(labels=c('1' = 'Clear', '2' = 'Cloudy', '3' = 'Light Precipitation'))  + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+On working days there isn't a difference between clear and cloudy days, but on non-working days less people rent bikes on cloudy days compared the clear days. When their is precipitation people are less inclined to bike.
+
+```{r, echo=FALSE, message=FALSE}
+## Problem 3: Capital Metro UT Ridership
+metro<- read.csv("capmetro_UT.csv")
+
+metro = mutate(metro,
+day_of_week = factor(day_of_week,
+levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")),
+month = factor(month,
+levels=c("Sep", "Oct","Nov")))
+
+# Number 1
+metro_board<- group_by(metro, hour_of_day, day_of_week, month)
+metro_avg<- summarise(metro_board, avg=mean(boarding))
+
+ggplot() + geom_line(data=metro_avg, aes(x=hour_of_day, y=avg, color = month)) + facet_wrap(~day_of_week) + labs(x = 'Hours of the Day', y = 'Average Boardings', title = 'Average Boardings Based on Month and Day of Week')
+```
+
+Ridership on the Capital Metro around UT is much lower on Saturdays and Sundays. On Mondays in September there is lower ridership, but Wednesdays, Thursdays, and Fridays in September have the highest number of ridership during peak hours.   
+
+```{r, echo=FALSE, message=FALSE}
+# Number 2
+
+ggplot(metro) + geom_point(aes(x=temperature, y=boarding, color= factor(weekend)), size=.5) + facet_wrap(~hour_of_day)+ labs(x = 'Temperature', y = 'Number of Boardings', title = 'Temperature vs. Boardings based on Hour of the Day') 
+                  
+```
+
+Each plot is showing a different hour of the day. The morning hours have much lower boarding on weekdays and weekend and there isn't much of a correlation between the temperature and the number of boardings.
+
+\newline\newline\newline\newline
+```{r, echo=FALSE, message=FALSE}
+## Problem 4: Wrangling the Billboard Top 10
+billboard<- read.csv("billboard.csv")
+
+# Part A
+billboard<- arrange(billboard, desc(weeks_on_chart))
+top10<- distinct(billboard, song, .keep_all = TRUE)
+
+top_table<- select(top10, performer, song, weeks_on_chart)
+top_table2<- head(top_table, n=10)
+
+kable_styling(kbl(top_table2, , caption = "Top 10 Most Popular Songs", col.names = c('Performer', 'Song', 'Count'))) %>%
+  kable_styling(latex_options = "HOLD_position")
+
+```
+
+Popularity of songs is found by counting the total number of weeks a song has been on the Billboard Top 100. 
+
+```{r, echo=FALSE, message=FALSE}
+# Part B
+unique_songs<- billboard %>%
+  filter(year != 1958) %>%
+  filter(year != 2021) %>%
+  group_by(year, song, performer) %>%
+  summarize(total_count = n())
+
+unique_year<- unique_songs %>%
+  group_by(year) %>%
+  summarise(unique_count = n())
+
+ggplot(unique_year) + geom_line(aes(x = year, y = unique_count))+ labs(x = 'Count', y = 'Year', title = 'Musical Diversity of the Billboard Top 100')
+```  
+
+Musical diversity is calculated by counting the number of unique songs that showed up on the Billboard Top 100. In 2001 the Billboard Top 100 reached the lowest musical diversity and everyone was liking the same songs. 
+
+
+```{r, echo=FALSE, message=FALSE}
+# Part C
+
+ten_week<- billboard %>%
+  filter(weeks_on_chart >= 10) %>%
+  group_by(song, performer) %>%
+  summarise(count = n_distinct(song))
+
+count_ten<- ten_week %>%
+  group_by(performer) %>%
+  summarise(count_songs = sum(count))
+
+thirty_songs<- count_ten %>%
+  filter(count_songs >= 30)
+
+ggplot(thirty_songs) + geom_col(aes(x = performer, y = count_songs)) + coord_flip() + labs(x = 'Artist', y = 'Song Count', title = 'Artists With More then 30 Ten-Week Hits')
+```
+
+A ten-week hit is a song that was on the Billboard Top 100 for at least ten consecutive weeks. There are 19 artists with at least 30 different songs that were ten-week hits and Elton John leads with 52 songs. 
