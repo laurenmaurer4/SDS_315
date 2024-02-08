@@ -1,0 +1,138 @@
+---
+title: "Homework 3 SDS 315"
+author: "Lauren Maurer"
+output:
+  pdf_document: default
+  html_document: default
+---
+EID: lem4336
+
+Link to GitHub: \url{https://github.com/laurenmaurer4/SDS_315.git}
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide')
+options(scipen = 100, digits = 4)
+
+library(tidyverse)
+library(mosaic)
+library(kableExtra)
+
+creatinine <- read.csv('creatinine.csv')
+marketmodel<- read.csv('marketmodel.csv')
+covid<- read.csv('covid.csv')
+milk<- read.csv('milk.csv')
+```
+
+# Problem 1
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Problem 1
+
+# Part A
+model_creatinine <- lm(creatclear ~ age, data = creatinine) 
+coef(model_creatinine)
+
+# Part B
+age_test <- c(55,40, 60) %>%
+  data.frame(age = .)
+  
+predictions<- predict(model_creatinine, newdata = age_test)
+age_test$predictions<- predictions
+
+# Part c
+age_test$actual <- c(0,135,112)
+age_test$residual<- age_test$actual-age_test$predictions
+```
+
+The creatinine clearance rate expected for a 55-year-old is 113.72 mL/minute. When a linear regression is run the trend line is y = 147.81 - 0.62x, where x is the age of the person and y is the creatinine clearance rate. 
+
+The creatinine clearance rate changes at a rate of -0.62 mL/minute as age increases from one year to another. The rate of change with age is the slope of the linear regression trend line because the slope represents the change in creatine clearance as age increases. 
+
+A 40-year-old with a creatinine clearance rate of 135 has a healthier rate than a 60-year-old with a creatinine clearance rate of 112. The higher the actual creatinine rate is when compared to the predicted the healthier a person's creatinine rate is for their age. To find the residual, the actual amount is subtracted from the predicted amount.
+
+\begin{center}
+40-year-old: 135 - 123.0203 = 11.9797 \end{center}
+\begin{center}
+60-year-old: 112 - 110.6240 = 1.3760 \end{center}
+
+The 40-year-old has a higher residual which means that their creatinine rate is higher for their age. 
+
+
+# Problem 2
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+stock_table<- data.frame()
+
+
+stocks <- c('AAPL', 'GOOG', 'MRK', 'JNJ', 'WMT', 'TGT')
+
+for (i in stocks) {
+  
+model_stock <- lm(get(i) ~ SPY, data = marketmodel)
+  Symbol<- i
+  Intercept<- round(coef(model_stock)[1], 10)
+  Slope<- round(coef(model_stock)[2], 4)
+  Rsquared<- round(summary(model_stock)$r.squared, 4)
+
+
+stock_table<- rbind(stock_table, data.frame(Symbol, Intercept, Slope, Rsquared, row.names = NULL))
+}
+
+kable(stock_table)
+
+```
+
+Beta is a measure of systematic risk for companies on the stock market. Beta is the percentage change in the return of a stock when the market increases by one percentage point. The beta of a stock is calculated when a linear regression is run. A company's beta of a stock is the slope of the linear regression line. The beta of a stock indicates the systematic risk of a company's stock. When beta is 1.0 the systematic risk is average. Anything above 1 has a higher systematic risk, and anything less than 1 has a lower systematic risk. Higher systematic risk means that when the market goes up the company's stock will increase by more than the average, but when the average market falls the company's stock will fall at a greater rate. The stock of companies with a lower systematic risk will fluctuate less as the average market increases and decreases.
+
+
+`r kable(stock_table)`
+The symbol identifies a company on the stock exchange. Intercept and slope are from the linear regression. R-squared measures the strength of association, when r-squared is closer to 1 more variation in y is predictable by x and when r-squared is closer to 0 more variation in y is not predictable by x. 
+
+Of the six stocks, Apple has the highest systematic risk and Walmart has the lowest systematic risk. 
+
+# Problem 3
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+
+ggplot(covid) +
+  geom_line(aes(x=days_since_first_death, y=deaths, color=country)) + labs(x='Days Since First Death', y='Number of Daily Deaths', title='Reported COVID Deaths Over Time')
+
+invisible({  
+ggplot(covid) +
+  geom_line(aes(x=days_since_first_death, y=log(deaths), color=country))
+})
+
+covid_country = covid %>%
+  group_by(country) 
+  
+lm_covid <- covid_country %>%
+  do(model = lm(log(deaths)~days_since_first_death, data = .))
+
+coef_by_country<- lm_covid %>%
+  summarise(
+    country = first(country), 
+    intercept = coef(model)[1], 
+    slope = coef(model)[2])
+
+coef_by_country$double<- 70/(100*coef_by_country$slope)
+```
+
+
+The estimated growth rate per day for Italy is 0.183 and the doubling time is 4 days.
+The estimated growth rate per day in Spain is 0.276 and the doubling time is 3 days.
+
+
+# Problem 4
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+invisible({
+ggplot(milk) +
+  geom_point(aes(x = price, y = sales))
+
+lm_milk = lm(log(sales) ~ log(price), data = milk)
+coef(lm_milk)
+
+ggplot(milk) +
+  geom_point(aes(x = log(price), y = log(sales))) +
+  geom_abline(intercept = 4.72, slope = -1.62, color='red')
+})
+```
+
+The estimated price elasticity is -1.62. To find the elasticity of demand for milk I made a linear regression by taking the log of prices and the log of sales. The slope from the regression is the estimated price elasticity. 
