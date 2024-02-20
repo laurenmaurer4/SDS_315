@@ -1,0 +1,224 @@
+---
+title: "Homework 4"
+author: "Lauren Maurer"
+date: "2024-02-11"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+EID: lem4336
+
+Link to GitHub: \url{https://github.com/laurenmaurer4/SDS_315.git}
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), message = FALSE)
+
+library(ggplot2)
+library(tidyverse)
+library(mosaic)
+
+gas_prices<- read.csv('gasprices.csv')
+sclass<- read.csv('sclass.csv')
+pilot<- read.csv('nbc_pilotsurvey.csv')
+ebay<- read.csv('ebay.csv')
+```
+
+# **Problem 1**
+
+### Theory A: Gas stations charge more if they lack direct competition in sight
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Theory A: Gas stations charge more if they lack direct competition in sight
+
+mean(Price ~ Competitors, data = gas_prices)
+diffmean(Price ~ Competitors, data = gas_prices)
+
+ggplot(gas_prices) + geom_histogram(aes(x= Price, fill = Competitors), position = "identity", alpha = 0.4, binwidth = 0.1) + labs(title = "Gas Price Depending on if there are Competitors", x = "Gas Price ($)", y = "Frequency")
+
+
+boot_gas_competitors = do(10000)*diffmean(Price ~ Competitors, data = resample(gas_prices))
+
+
+confint(boot_gas_competitors, level = 0.95)
+```
+
+
+We are investigating if gas stations charge more if they lack direct competition in sight. Our best guess is that difference in gas prices between gas stations with direct competition and no direct competition is `r round((confint(boot_gas_competitors, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_gas_competitors, level = 0.95)[2]), 4)` and `r round((confint(boot_gas_competitors, level = 0.95)[3]), 4)`. This interval contains zero so it is not statistically significant and we can't conclude that gas stations charge more in they lack direct competition in sight. 
+
+### Theory B: The richer the area, the higher the gas prices
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Theory B: The richer the area, the higher the gas prices
+
+ggplot(gas_prices) + geom_point(aes(x=Income, y=Price)) + labs(title = "Income vs. Gas Price", x = "Income ($)", y = "Gas Price ($)")
+
+lm_gas_income = lm(Price ~ Income, data = gas_prices)
+coef(lm_gas_income)
+
+
+gas_prices$Income <- gas_prices$Income/100000
+
+boot_gas_income = do(10000) * lm(Price ~ Income, data = resample(gas_prices))
+
+confint(boot_gas_income, level = 0.95)
+```
+We are investigating if the richer the area, the higher the gas prices. Our best guess is that as income rises the mean gas prices are changing by `r round((confint(boot_gas_income, level = 0.95)[2, 6]), 3)` for every $100,000 increase in income. We are 95% that the true change in gas prices are between `r round((confint(boot_gas_income, level = 0.95)[2, 2]),3)` and `r round((confint(boot_gas_income, level = 0.95)[2, 3]), 3)`. This interval doesn't contain zero so it is statistically significant and we can conclude that the richer the area, the higher the gas prices.
+
+
+### Theory C: Gas stations at stoplights charge more
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Theory C: Gas stations at stoplights charge more
+ggplot(gas_prices) + geom_histogram(aes(x= Price, fill = Stoplight), position = "identity", alpha = 0.4, binwidth = 0.1) + labs(title = "Gas Price Depending on if there is a Stoplight", x = "Gas Price ($)", y = "Frequency")
+
+
+mean(Price ~ Stoplight, data = gas_prices)
+diffmean(Price ~ Stoplight, data = gas_prices)
+
+boot_gas_stoplight = do(10000)*diffmean(Price ~ Stoplight, data = resample(gas_prices))
+
+confint(boot_gas_stoplight, level = 0.95)
+```
+We are investigating if gas stations at stoplights charge more. Our best guess is that difference in gas prices between gas stations at a stoplight and gas stations not at a stoplight is `r round((confint(boot_gas_stoplight, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_gas_stoplight, level = 0.95)[2]), 4)` and `r round((confint(boot_gas_stoplight, level = 0.95)[3]), 4)`. This interval contains zero so it is not statistically significant and we can't conclude that gas stations at stoplights charge more. 
+
+
+### Theory D: Gas stations with direct highway access charge more
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Theory D: Gas stations with direct highway access charge more
+ggplot(gas_prices) + geom_histogram(aes(x = Price, fill = Highway), position = "identity", alpha = 0.4, binwidth = 0.1) + labs(title = "Gas Price Depending on if there is Highway Access", x = "Gas Price ($)", y = "Frequency")
+
+
+mean(Price ~ Highway, data = gas_prices)
+diffmean(Price ~ Highway, data = gas_prices)
+
+boot_gas_highway = do(10000)*diffmean(Price ~ Highway, data = resample(gas_prices))
+
+confint(boot_gas_highway, level = 0.95)
+```
+
+We are investigating if gas stations with direct highway access charge more. Our best guess is that difference in gas prices between gas stations with highway access and non-highway access is `r round((confint(boot_gas_highway, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_gas_highway, level = 0.95)[2]), 4)` and `r round((confint(boot_gas_highway, level = 0.95)[3]), 4)`. This interval does not contain zero so it is statistically significant and we can conclude that gas stations with direct highway access charge more. 
+
+
+### Theory E: Shell charges more than all other non-Shell brands
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Theory E: Shell charges more than all other non-Shell brands.
+
+gas_prices<- mutate(gas_prices, isShell = Brand == "Shell")
+
+ggplot(gas_prices) + geom_histogram(aes(x = Price, fill = isShell), position = "identity", alpha = 0.4, binwidth = 0.1) + labs(title = "Gas Price Depending on if the Gas Station is Shell", x = "Gas Price ($)", y = "Frequency")
+
+
+mean(Price ~ isShell, data = gas_prices)
+diffmean(Price ~ isShell, data = gas_prices)
+
+boot_gas_shell = do(10000)*diffmean(Price ~ isShell, data = resample(gas_prices))
+
+
+confint(boot_gas_shell, level = 0.95)
+
+```
+We are investigating if Shell charges more than all other non-Shell brands. Our best guess is that difference in gas prices between Shell gas stations and non-Shell gas stations is `r round((confint(boot_gas_stoplight, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_gas_stoplight, level = 0.95)[2]), 4)` and `r round((confint(boot_gas_stoplight, level = 0.95)[3]), 4)`. This interval contains zero so it is not statistically significant and we can't conclude that Shell charges more than all other non-Shell brands. 
+
+
+# **Problem 2**
+
+### Part A:
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Part A:
+filter_car<- filter(sclass, year== 2011 & trim=="63 AMG")
+
+boot_car_mileage = do(10000)*mean(~mileage, data = resample(filter_car))
+confint(boot_car_mileage, level=0.95)
+```
+With 95% confidence the average mean of car is between `r round((confint(boot_car_mileage, level=0.95)[2]), 2)` and `r round((confint(boot_car_mileage, level=0.95)[3]), 2)`
+
+
+### Part B:
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Part B:
+
+sclass_filter2<- filter(sclass, year == 2014 & trim == "550")
+sclass_filter2<- mutate(sclass_filter2, isBlack = color == "Black")
+
+boot_car_color = do(10000)*prop(~isBlack, data = resample(sclass_filter2))
+confint(boot_car_color, level = 0.95)
+```
+
+With 95% confidence the average mean of car is between `r round((confint(boot_car_color, level=0.95)[2]), 2)` and `r round((confint(boot_car_color, level=0.95)[3]), 2)`
+
+# **Problem 3**
+
+### Part A:
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Part A:
+pilot_happy<- filter(pilot, Show == "Living with Ed" |  Show == "My Name is Earl")
+
+ggplot(pilot_happy) + geom_histogram(aes(x = Q1_Happy, fill = Show), position = "identity", alpha = 0.4, binwidth = 1) + labs(title = "Happiness Rating Depending on Show", x = "Happy Rating", y = "Frequency")
+
+
+mean(Q1_Happy ~ Show, data = pilot_happy)
+diffmean(Q1_Happy ~ Show, data = pilot_happy)
+
+boot_pilot_happy = do(10000)*diffmean(Q1_Happy ~ Show, data = resample(pilot_happy))
+
+
+confint(boot_pilot_happy, level = 0.95)
+```
+
+We are looking at the difference in mean of the happiness rating between "Living with Ed" and "My Name is Earl". Our best guess is that difference in mean happiness between "My Name is Earl" and "Living with Ed" is `r round((confint(boot_pilot_happy, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_pilot_happy, level = 0.95)[2]), 4)` and `r round((confint(boot_pilot_happy, level = 0.95)[3]), 4)`. This interval contains zero so it isn't statistically significant and we can't conclude that there is a significant difference between the two shows happiness rating. 
+
+
+### Part B:
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Part B:
+pilot_annoyed<- filter(pilot, Show == "The Biggest Loser" |  Show == "The Apprentice: Los Angeles")
+
+ggplot(pilot_annoyed) + geom_histogram(aes(x = Q1_Annoyed, fill = Show), position = "identity", alpha = 0.4, binwidth = 1) + labs(title = "Annoyed Rating Depending on Show", x = "Annoyed Rating", y = "Frequency")
+
+mean(Q1_Annoyed ~ Show, data = pilot_annoyed)
+diffmean(Q1_Annoyed ~ Show, data = pilot_annoyed)
+
+boot_pilot_annoyed = do(10000)*diffmean(Q1_Annoyed ~ Show, data = resample(pilot_annoyed))
+
+confint(boot_pilot_annoyed, level = 0.95)
+```
+
+We are looking at the difference in mean of the annoyance rating between "The Apprentice: Los Angeles" and "The Biggest Loser". Our best guess is that difference in mean annoyance between "The Biggest Loser" and "The Apprentice: Los Angeles" is `r round((confint(boot_pilot_annoyed, level = 0.95)[6]), 4)`. We are 95% that the true mean difference is between `r round((confint(boot_pilot_annoyed, level = 0.95)[2]), 4)` and `r round((confint(boot_pilot_annoyed, level = 0.95)[3]), 4)`. This interval does not contain zero so it is statistically significant and we can conclude that there is a difference between the two shows annoyance rating with "The Apprentice: Los Angeles" being more annoying. 
+
+### Part C:
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Part C:
+
+pilot_confusing <- filter(pilot, Show == "Dancing with the Stars")
+pilot_confusing <- mutate(pilot_confusing, isConfused = Q2_Confusing == 4 | Q2_Confusing == 5) 
+
+ggplot(pilot_confusing) + geom_histogram(aes(x = isConfused, fill = isConfused), stat = 'count') + labs(title = "Dancing with the Stars Rule Confusion", x = "Confused", y = "Frequency")
+
+boot_pilot_confusing = do(10000)*prop(~isConfused, data = resample(pilot_confusing))
+confint(boot_pilot_confusing, level = 0.95)
+```
+
+We are trying to find the proportion of American TV watchers that would find "Dancing with the Stars" confusing. Our best guess is that `r 100*(round((confint(boot_pilot_confusing, level = 0.95)[6]), 4))`% of American TV watchers will find the show confusing. We are 95% confident that the true proportion is between `r 100*(round((confint(boot_pilot_confusing, level = 0.95)[2]), 4))`% and `r 100*(round((confint(boot_pilot_confusing, level = 0.95)[3]), 4))`%.
+
+# **Problem 4**
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+
+
+ebay <- mutate(ebay, adwords_pause = ifelse(adwords_pause == 0, 'Control', adwords_pause))
+ebay <- mutate(ebay, adwords_pause = ifelse(adwords_pause == 1, 'Treatment', adwords_pause))
+
+
+ggplot(ebay) + geom_histogram(aes(x = rev_ratio, fill = adwords_pause), position = "identity", alpha = 0.4, binwidth = .1) + labs(title = "Revenue Ratio of EBay Depending on Pausing Ad Words", x = "Revenue Ratio", y = "Frequency")
+
+mean(rev_ratio ~ adwords_pause, data = ebay)
+diffmean(rev_ratio ~ adwords_pause, data = ebay)
+
+boot_ebay_rev = do(10000)*diffmean(rev_ratio ~ adwords_pause, data = resample(ebay))
+
+
+confint(boot_ebay_rev, level = 0.95)
+```
+
+We are looking at the change in revenue ratio when EBay paused paying Google to put their website at the top when people searched for spacific things. Our best guess is that the difference between the mean of the treatment (stopped paying) and the control (continued paying) is `r round((confint(boot_ebay_rev, level = 0.95)[6]), 4)`. We are 95% confident that the mean revenue ration is between `r round((confint(boot_ebay_rev, level = 0.95)[2]), 4)` and `r round((confint(boot_ebay_rev, level = 0.95)[3]), 4)`. This interval does not contain zero so it is statistically significant and we can conclude that paying Google increases the revenure ratio. 
+
+
+
