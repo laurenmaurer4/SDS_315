@@ -1,0 +1,160 @@
+---
+title: "Homework 5"
+author: "Lauren Maurer"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+EID: lem4336
+
+Link to GitHub: \url{https://github.com/laurenmaurer4/SDS_315.git}
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide')
+options(scipen = 100, digits = 4)
+
+library(tidyverse)
+library(mosaic)
+library(kableExtra)
+library(ggplot2)
+
+letter_frequency <- read.csv('letter_frequencies.csv')
+brown_sentences<- readLines('brown_sentences.txt')
+
+```
+
+# Problem 1 - Iron Bank
+
+```{r, warning = FALSE}
+iron_bank_sim = do(100000)*nflip(n=2021, prob=0.024)
+head(iron_bank_sim)
+
+suppressWarnings({
+  
+ggplot(iron_bank_sim) + geom_histogram(aes(x=nflip), bins = 30) + labs(title = 'Iron Bank Probability Distribution of Null Hypothesis', x = 'Flagged Trades', y = 'Count')
+  
+})
+
+
+sum(iron_bank_sim >= 70)
+p_value = sum(iron_bank_sim >= 70)/100000
+```
+
+
+The null hypothesis is that over the long run, securities trades from the Iron Bank are flagged at the same 2.4% rate as that of other traders. 
+
+The test statistic used is that 70 trades from Iron Bank were flagged out of the last 2021.
+
+The p-value is `r round(p_value, 5)`.
+
+The p-value is less than the significance level of 0.05. There is enough evidence to reject the null hypothesis that Iron Bank is being flagged at the same rate as the rest of traders (2.4%).
+
+
+
+# Problem 2 - Health Inspections
+
+```{r, warning = FALSE}
+health_inspections_sim = do(100000)*nflip(n=50, prob=0.03)
+head(health_inspections_sim)
+
+ggplot(health_inspections_sim) + geom_histogram(aes(x=nflip), binwidth=1) + labs(title = 'Gourmet Bites Probability Distribution of Null Hypothesis', x = 'Reported Health Code Violations', y = 'Count')
+
+sum(health_inspections_sim >= 8)
+p_value = sum(health_inspections_sim >= 8)/100000
+sum(health_inspections_sim >= 8)/100000
+```
+
+The null hypothesis is that Gourmet Bites is consistent with the Health department's finding that, restaurants in the city are cited for health code violations at the same 3% baseline rate. 
+
+The test statistic used is that 8 of the last 50 inspections of Gourmet Bites branches resulted in health code violations.
+
+The p-value is `r round(p_value, 6)`.
+
+The p-value is much less than the significance level of 0.05. There is enough evidence to reject the null hypothesis that Gourmet Bites is consistent with the average 3% baseline rate. The p-value is the probability of observing the test statistic or something more extreme, so the small p-value of the Gourmet Bites test statistic indicates that it wouldn't be very likely to have 8 out of 50 inspections cited for health code violations if the null hypothesis is true. 
+
+
+
+# Problem 3 - LLM Watermarking
+
+### Part A: The null or reference distribution
+```{r,  warning = FALSE}
+# This will calculate the chi-squared goodness of fit statistic
+# for an input sentence, based on a frequency table of letters
+calculate_chi_squared = function(sentence, freq_table) {
+  
+  # Ensure letter frequencies are normalized and sum to 1
+  freq_table$Probability = freq_table$Probability / sum(freq_table$Probability)
+  
+  # Remove non-letters and convert to uppercase
+  clean_sentence = gsub("[^A-Za-z]", "", sentence)
+  clean_sentence = toupper(clean_sentence)
+  
+  # Count the occurrences of each letter in the sentence
+  observed_counts = table(factor(strsplit(clean_sentence, "")[[1]], levels = freq_table$Letter))
+  
+  # Calculate expected counts
+  total_letters = sum(observed_counts)
+  expected_counts = total_letters * freq_table$Probability
+  
+  # Chi-squared statistic
+  chi_squared_stat = sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+
+
+brown_chi_squared <- c()
+for (i in brown_sentences){
+  chi_squared <- calculate_chi_squared(i, letter_frequency)
+  brown_chi_squared<- c(brown_chi_squared, chi_squared)
+  
+}
+
+sent_chi_squared<- data.frame(brown_chi_squared)
+
+suppressWarnings({
+  ggplot(iron_bank_sim) + geom_histogram(aes(x=nflip))
+  ggplot(sent_chi_squared) + geom_histogram(aes(x=brown_chi_squared), bins = 30) + labs(title = 'Null Distribution of chi-squared Values Expected in Normal English Sentences', x='Chi-Squared Values', y='Count')
+})
+```
+
+### Part B: Check for watermark
+```{r,  warning=FALSE, echo=FALSE}
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+LLM_p_value<- data.frame()
+for (i in sentences){
+  LLM_chi_squared <- calculate_chi_squared(i, letter_frequency)
+  p_value<- round(sum(sent_chi_squared >= LLM_chi_squared)/56745, 3)
+  
+  LLM_p_value<- rbind(LLM_p_value, data.frame(p_value))
+}  
+
+LLM_p_value <- data.frame(LLM_p_value)
+names(LLM_p_value) <- c("p_value")
+
+sentence_number<- c()
+for (i in 1:10) {
+  sentence_number<- c(sentence_number, paste("Sentence " , i, sep = ""))
+}
+
+LLM_p_value<- cbind(sentence_number, LLM_p_value)
+
+kable(LLM_p_value)
+
+```
+
+`r kable(LLM_p_value)`
+
+Sentence 6 is produced by a LLM because it has the lowest p-value. To determine which sentence was made by a LLM we take the chi-squared value for the letter frequency of each sentence and then find the p-value by comparing the chi-squared value to the null chi-square distribution. The p-value is tells you how likely it is that you get a certain chi-squared value or more extreme, so the lower the p-value the more unlikely that the sentence follows the normal distribution of letters in English. 
