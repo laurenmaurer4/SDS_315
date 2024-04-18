@@ -1,0 +1,214 @@
+---
+title: "Homework 9"
+author: "Lauren Maurer"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+EID: lem4336
+
+Link to GitHub: \url{https://github.com/laurenmaurer4/SDS_315.git}
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide')
+
+library(dbplyr)
+library(tidyverse)
+library(mosaic)
+library(MatchIt)
+library(ggplot2)
+library(kableExtra)
+
+turnout <- read.csv("C:/Users/laure/Downloads/turnout.csv")
+solder <- read.csv("C:/Users/laure/Downloads/solder.csv")
+```
+
+
+
+# Problem 1: Get Out the Vote
+
+## Part A
+```{r}
+# The proportion of those receiving a GOTV call who voted in 1998.
+got_call <- filter(turnout, GOTV_call == 1)
+call_voted_1998 <- filter(got_call, voted1998 == 1)
+call_prop_vote <- nrow(call_voted_1998)/ nrow(got_call)
+
+# The sample proportion of those not receiving a GOTV call who voted in 1998
+no_call <- filter(turnout, GOTV_call == 0)
+no_call_voted_1998 <- filter(no_call, voted1998 == 1)
+no_call_prop_vote <- nrow(no_call_voted_1998)/ nrow(no_call) 
+
+# 95% confidence interval for the difference in these two proportions
+confit <- prop.test(voted1998 ~ GOTV_call, data = turnout)
+```
+
+The proportion of those who received a GOTV call who voted in 1998 is `r round(call_prop_vote, 4)`. The sample proportion of those who did not receive a GOTV call and voted in 1998 in `r round(no_call_prop_vote, 4)`. When a 95% confidence interval is run for the difference in the two proportions the lower value is 0.1411 and the upper value is 0.2659.
+
+
+## Part B
+```{r}
+con_MP_98<- xtabs(~ MAJORPTY + voted1998, data = turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+
+con_MP_call <- xtabs(~ MAJORPTY + GOTV_call, data = turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+
+
+con_96_98 <- xtabs(~ voted1996 + voted1998, data = turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+con_96_call <- xtabs(~ voted1996 + GOTV_call, data = turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+
+```
+### Variable: Major Party 
+*0: False, 1: True*\
+
+**Table 1: Proportions of Major Party and Voted in 1998** 
+```{r, results='markup'}
+con_MP_98
+```
+
+70% of people who did not vote in 1998 were part of a major party and 80% of people who voted in 1998 were part of a major party. Being part of a major party is a confounder because a higher proportion of the people in a major party voted in 1998.\
+
+**Table 2: Proportions of Major Party and Got a GOTV Call**
+```{r, results='markup'}
+con_MP_call
+```
+74% of people who did not get a call were registered in a major party and 80% of the people who were called are also registered as a member in a major party. This is a confounder because there is a higher proportion of people who got the call and are part of a major party compared to people who did not get called and are part of a major party.\
+
+### Variable: Voted in 1996 
+\
+*0: False, 1: True*\
+
+**Table 3: Proportions of Voted in 1996 and Voted in 1998**
+```{r, results='markup'}
+con_96_98
+```
+
+Voting in 1996 is a confounder because people who voted in 1996 were more likely to vote in 1998.
+
+**Table 4: Proportions of Voted in 1996 and Got a GOTV Call**
+```{r, results='markup'}
+con_96_call
+```
+
+Voting in 1996 is also related to people who got the GOTV call. The people who voted in 1996 were more likely to get the call.
+
+### Variable: Major Party 
+\
+*0: Did not vote in 1998, 1: Voted in 1998*\
+
+**Table 5: Mean Age of Voters in 1998**
+```{r, results='markup'}
+mean(AGE ~ voted1998, data = turnout) %>%
+  round(4)
+```
+The people who voted in 1998 had a higher mean age than those who did not.
+
+**Table 6: Mean Age of People Who Got GOTV Call**
+```{r, results='markup'}
+mean(AGE ~ GOTV_call, data = turnout) %>%
+  round(4)
+```
+
+The mean age of people who got the call were older. The age of voters is a confounding variable because getting the call is related to age and so is voting in 1998.
+
+## Part C
+```{r}
+# Matching data
+matched_turnout <- matchit(GOTV_call ~ factor(voted1996) + AGE + factor(MAJORPTY), data = turnout, ratio = 5) %>%
+  match.data
+```
+
+```{r, results='markup'}
+# Proving there aren't confounders
+xtabs(~ MAJORPTY + GOTV_call, data = matched_turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+
+xtabs(~ voted1996 + GOTV_call, data = matched_turnout) %>%
+  prop.table(margin = 2) %>%
+  round(4)
+
+mean(AGE ~ GOTV_call, data = matched_turnout)
+
+```
+
+
+All of the rows contain similar proportions indicating that the data is matched and has gotten rid of confounding variables
+
+```{r}
+# The proportion of those receiving a GOTV call who voted in 1998 for matched data.
+got_call <- filter(matched_turnout, GOTV_call == 1)
+call_voted_1998 <- filter(got_call, voted1998 == 1)
+call_prop_vote_matched <- nrow(call_voted_1998)/ nrow(got_call)
+
+# The sample proportion of those not receiving a GOTV call who voted in 1998 for matched data
+no_call <- filter(matched_turnout, GOTV_call == 0)
+no_call_voted_1998 <- filter(no_call, voted1998 == 1)
+no_call_prop_vote_matched <- nrow(no_call_voted_1998)/ nrow(no_call) 
+
+# 95% confidence interval for the difference in these two proportions
+matched_confint <- prop.test(voted1998 ~ GOTV_call, data = matched_turnout)
+
+```
+
+For the matched data set, the proportion of people who received a GOTV call and voted is `r round(call_prop_vote_matched, 4)` and the sample proportion of people who did not receive a GOVT call and voted in 1998 is `r round(no_call_prop_vote_matched, 4)`The confidence interval is significant because it doesn't include zero so the conclusion is that when people receive a call they are more likely to vote. The lower value of the interval is 0.0056 and the upper value is 0.1418.
+
+
+# Problem 2: Manufacturing Falws in Circuit Boards
+
+## Part A
+```{r}
+opening_solder <- mutate(solder, Opening = factor(Opening))
+
+ggplot(opening_solder) +
+  geom_boxplot(aes(x=Opening, y=skips)) + labs(y='Skips', title = 'Opening Type vs. Number of Skips')
+```
+The graph above shows the opening type vs the range of number of skips. (L is large, M is medium, S is small)
+```{r}
+thickness_solder <- mutate(solder, Solder = factor(Solder))
+
+ggplot(thickness_solder) +
+  geom_boxplot(aes(x=Solder, y=skips)) + labs(y='Skips', title = 'Solder Thickness vs. Number of Skips')
+```
+The graph above shows the solder thickness vs the range of number of skips.
+
+## Part B
+```{r}
+solder_model = lm(skips ~ Opening + Solder + Opening:Solder, data = solder)
+solder_model_coef = coef(solder_model)
+
+solder_model_coef_df <- data.frame(
+  Coefficient_Value = solder_model_coef
+)
+row.names(solder_model_coef_df) <- c('Large Opening & Thick', 'Medium Opening', 'Small Opening', 'Thin', 'Medium Opening + Thin', 'Small Opening + Thin')
+
+
+
+confint_solder_model = confint(solder_model, level = 0.95) %>% round(3)
+row.names(confint_solder_model) <- c('Large Opening & Thick', 'Medium Opening', 'Small Opening', 'Thin', 'Medium Opening + Thin', 'Small Opening + Thin')
+```
+**Table of Estimate Coefficient**
+`r kable(solder_model_coef_df)`\newpage
+
+**Table of 95% Confidence Interval for Each Coefficient**
+`r kable(confint_solder_model)`
+
+## Part C
+
+**Large Opening & Thick:** The baseline number of skips for the combination of large opening and thick solder is estimated to be 0.393\
+**Medium Opening:** The main effect for the medium opening variable is 2.407. This is the effect of medium opening in isolation.\
+**Small Opening:** The main effect for the small opening variable is 5.127. This is the effect of small opening in isolation.\
+**Thin:** The main effect for the thin solder variable is 2.280. This is the effect of thin solder in isolation. \
+**Medium Opening + Thin:** The interaction effect for medium opening and thin solder is -0.740.\
+**Small Opening + Thin:** The interaction effect for small opening and thin solder is 9.653.\
+
+## Part D
+
+The opening size and thickness I would recommend to AT&T is medium opening and thin solder. The data shows that the combination of medium opening and thin solder will be 0.740 below the baseline number of skips which is 0.393.
