@@ -1,0 +1,119 @@
+---
+title: "Homework 10"
+author: "Lauren Maurer"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+EID: lem4336
+
+Link to GitHub: \url{https://github.com/laurenmaurer4/SDS_315.git}
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = FALSE, results = 'hide')
+
+library(dbplyr)
+library(tidyverse)
+library(mosaic)
+library(MatchIt)
+library(ggplot2)
+library(kableExtra)
+library(moderndive)
+library(effectsize)
+
+redline <- read.csv("C:/Users/laure/Downloads/redlining.csv")
+groceries <- read.csv("C:/Users/laure/Downloads/groceries.csv")
+```
+
+# Problem 1: Redlining
+
+```{r}
+redline_lm = lm(policies ~ minority + fire + age + income, data = redline)
+redline_table = get_regression_table(redline_lm)
+
+
+standardize_parameters(redline_lm)
+```
+
+**Question:** The question that we are trying to answer is whether there is an association between the number of FAIR policies and that racial/ethnic composition of a ZIP code. 
+
+**Approach:** A linear regression was used to answer the question. To account for confounding variables we adjusted for fire, age, and income.
+
+**Results:** `r kable(redline_table, caption='Redlining Regression Table')`
+```{r, message=FALSE}
+ggplot(redline) + geom_histogram(aes(x=policies)) + labs(x='Number of Policies per 100 People',y='Count', title='Distribution of Number of Policies')
+```
+\newline
+\newline
+**Conclusion:** There is an association between the number of FAIR policies and the racial/ethnic composition of a ZIP code. When there is a 1% change in minority there is a 0.008 increase in the number of FAIR policies per 100 residents in a ZIP code. The 95% confidence interval for the change in policies is between 0.003 and 0.014. This isn't a significant change but also  not a small change. In the data, the number of policies per 100 people ranges from zero to a little over 2. If the minority population increases by 50% then there are 0.4 policies per 100 people. That increase covers a little under 1/5 of the range of all policies per 100 people in the data set.
+
+
+
+# Problem 2: Grocery Store Prices
+
+### Part A
+```{r}
+# Part A:
+groceries_store_avg <- groceries %>%
+  group_by(Store) %>%
+  summarize(avg_price = mean(Price))
+
+ggplot(groceries_store_avg) + geom_bar(aes(x=Store, y=avg_price), stat = 'identity') + labs(y='Average Prices of Products ($)', title = 'Store vs. Average Product Price', caption = str_wrap('The average price of all products in this plot range from 2 to 4. Whole Foods and Wheatsville Food Co-op have the highest average. Fiesta and Walmart have the lowest averages.')) + theme(plot.caption.position = "plot", plot.caption = element_text(hjust = 0)) + coord_flip()
+```
+
+### Part B
+```{r, fig.height=6, fig.width=7}
+# Part B
+
+groceries_product <- groceries %>%
+  group_by(Product) %>%
+  summarise(num_stores = n())
+
+ggplot(groceries_product) + geom_bar(aes(x=num_stores, y=Product), stat = 'identity') + theme(text = element_text(size = 12), plot.margin = margin(.005,.5,.005,.5, "cm")) + labs(x = "Number of Stores", title = 'Number of Stores a Product Is Sold In', caption = 'The plot above shows the number of stores that sell each product. Eggs and milk are sold in all 16 stores.') + theme(plot.caption.position = "plot", plot.caption = element_text(hjust = 0))
+```
+
+### Part C
+```{r}
+# Part C
+
+groceries_lm = lm(Price ~ Product + Type, data = groceries)
+groceries_lm_table = get_regression_table(groceries_lm)
+```
+
+Compared with ordinary grocery stores (like Albertsons, H-E-B, or Krogers), convenience stores charge somewhere between 0.41 and 0.92 dollars more for the same product.
+
+### Part D
+```{r}
+# Part D
+
+groceries_store_lm = lm(Price ~ Product + Store, data = groceries)
+groceries_store_lm_table = get_regression_table(groceries_store_lm)
+```
+
+Walmart and Kroger Fresh Fare charge the least when comparing the same product. Whole Foods and Wheatsville Food Co-op charge the most when comparing the same product.
+
+### Part E
+```{r}
+# Part E
+```
+
+H-E-B and Central Market are similar. Central Market charges an estimated \$0.07 more for the same product. This is a small difference compared to Central Market and Whole Foods where Whole Foods charges an estimated \$0.94 more for the same product.
+
+
+### Part F
+```{r}
+# Part F
+
+groceries <- groceries %>%
+  mutate(Income10K = Income%/%10000)
+
+groceries_income_lm = lm(Price ~ Product + Income10K, data = groceries)
+groceries_income_lm_table = get_regression_table(groceries_income_lm)
+
+standardize_parameters(groceries_income_lm)
+```
+
+As income increases by 10K the amount that people spend on food decreases by $0.13. People in poorer ZIP codes on average pay more for the same product. A one-standard deviation increase in the income of a ZIP code seems to be associated with a -0.03 standard-deviation change in the price that consumers in that ZIP code expect to pay for the same product.
+
+
